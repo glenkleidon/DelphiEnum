@@ -1,0 +1,529 @@
+
+At 28/06/2017 12:56 PM, Glen Kleidon wrote:
+Hey everyone,
+
+Just had this quick thought - I have Method helpers for Records and 
+Classes.  I asked myself - does that work for ENUMS?
+
+The answer is - YES (but you probably all knew that already....)
+
+Create a console app and paste this in...
+ >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+program EnumHelper;
+
+{$APPTYPE CONSOLE}
+
+{$R *.res}
+
+uses
+   System.SysUtils;
+
+type
+   TSomeType = (MyOptionA, MyOptionB, MyOptionC);
+
+   TSomeTypeHelper = Record helper for TSomeType
+     Class Function AsString(AType: TSomeType): string; static;
+   End;
+
+   class function TSomeTypeHelper.AsString(AType: TSomeType): string;
+   begin
+     case Atype of
+       MyOptionA: result := 'Option A';
+       MyOptionB: result := 'Option B';
+       MyOptionC: result := 'Option C';
+     end;
+   end;
+
+
+begin
+   try
+   write(format(
+          'Sometype A is "%s"'#13#10 +
+          'Sometype B is "%s"'#13#10 +
+          'Sometype C is "%s"'#13#10,
+         [ TSomeType.AsString(TSomeType.MyOptionA),
+             TSomeType.AsString(TSomeType.MyOptionB),
+             TSomeType.AsString(TSomeType.MyOptionC)
+         ]
+   ));
+   readln;
+   except
+     on E: Exception do
+       Writeln(E.ClassName, ': ', E.Message);
+   end;
+end.
+><<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+
+From:  	"Aaron Christiansen" 
+Date:  	Wed, 28 Jun 2017 16:25:54 +1000
+To:  	"ADUG Members List" <adug-members@a.au>
+Subject:  	Re: [ADUG] Enumerated types - Helper records work for them too.
+I did not know that and it's brilliant.
+
+Thanks!
+
+On 28/06/2017 1:07 PM, Glen Kleidon wrote:
+
+> Oh, Of course this works too:
+>
+>    MyType := MyOptionC;
+>    writeln(mytype.AsString(myType));
+>
+>
+
+
+------Original Mail------
+From: "Linden ROTH" 
+To: "ADUG Members List" <adug-members@.au>
+Sent: Wed, 28 Jun 2017 16:54:49 +1000
+Subject: Re: [ADUG] Enumerated types - Helper records work for them too.
+
+But so does
+
+   MyType := MyOptionC;
+   writeln(mytype.AsString(MyOptionA));
+  
+Which is not that helpful
+
+struggling to see how this "function" is more useful that a generic class function
+
+yes if
+
+   MyType := MyOptionC;
+   writeln( mytype.AsString );
+
+worked then YEAH but other wise it kind of pointless
+
+----------------------
+Sorry Linden,
+
+Missed your question when it was mixed in with the other ones.
+
+You were struggling to see the difference - 
+
+well not much as you pointed out, except that I originally said 
+ TSometype.AsString(MyOptionA)
+worked, I was just trying to point out that if you have a variable, you can also use that to get
+evoke the function
+ MyType.AsString(MyOptionA)
+
+I have run across certain situations in record functions where the Class level version is not
+allowed by the compiler, but the variable type is.
+  
+
+------------------
+
+
+From:  	"John McDonald" 
+Date:  	Thu, 29 Jun 2017 10:00:05 +1000
+To:  	"ADUG Members List" <adug-members@..au>
+Subject:  	Re: [ADUG] Enumerated types - Helper records work for them too.
+If you don't have explicit values, you can do this:
+
+uses TypInfo, .....
+
+  TTokenTypeHelper = record helper for TTokenType
+   public
+     function ToString: string;
+   end;
+
+function TTokenTypeHelper.ToString: string;
+begin
+   Result := GetEnumName(TypeInfo(TTokenType), Ord(Self));
+end;
+
+Regards
+John
+
+On 2017-06-28 08:39, Jared Davison wrote:
+> Cool. I'm sure it is useful for some complicated things.
+> 
+> For the trivial use of the example I would opt for a shorter and 
+> compiler check-able way to make sure all the elements are all valued 
+> by doing it in a declarative way with a constant. TSomeTypeAsString.
+> Of course such a thing could replace the case statement in the
+> TSomeTypeHelper.AsString() helper method too. Case statements don't 
+> force one to implement every single case at compile-time which is 
+> useful
+for program correctness.
+> 
+> Thanks, good to know enums can have helper methods, it might be useful 
+> one day.
+> 
+> Jared
+
+
+-----Original Message-----
+From: adug-members
+
+Bob Swart
+Sent: Wednesday, 28 June 2017 4:56 PM
+To: adug-members@..au
+Subject: Re: [ADUG] Enumerated types - Helper records work for them too.
+
+Hi Glen and Jared,
+
+I can get it even smaller, by making it a proper function (not a class
+function) so it operates on the enumerated value itself, and you can write
+expressions like TSomeType.MyOptionA.AsString
+
+
+program EnumHelper;
+{$APPTYPE CONSOLE}
+
+uses
+   System.SysUtils;
+
+type
+   TSomeType = (MyOptionA, MyOptionB, MyOptionC);
+
+   TSomeTypeHelper = record helper for TSomeType
+     function AsString: string;
+   end;
+
+   function TSomeTypeHelper.AsString: string;
+   const
+     TSomeTypeAsString: array[TSomeType] of string =
+       ('Option A', 'Option B', 'Option C');
+   begin
+     Result := TSomeTypeAsString[Self]
+   end;
+
+
+begin
+   try
+     write(format(
+            'Sometype A is "%s"'#13#10 +
+            'Sometype B is "%s"'#13#10 +
+            'Sometype C is "%s"'#13#10,
+           [ TSomeType.MyOptionA.AsString,
+             TSomeType.MyOptionB.AsString,
+             TSomeType.MyOptionC.AsString ]
+     ));
+   readln;
+   except
+     on E: Exception do
+       Writeln(E.ClassName, ': ', E.Message);
+   end;
+end.
+
+
+begin
+  try
+   // You can now use SLType instead of STYPE
+
+   SLType := 'Option C';
+   Stype :=SLType;
+   if Stype=MyOptionC then
+     Writeln(format('Ord value of Stype is %d',[ord(Stype)]));
+
+   if SLType.Enum in [MyOptionA,MyOptionA] then writeln('Something when
+wrong')
+     else writeln('Yep, Stype is '+SLType);
+
+   readln;
+  except
+    on E: Exception do
+      Writeln(E.ClassName, ': ', E.Message);
+  end;
+end.
+
+
+-----Original Message-----
+From: adug-members
+
+Glen Kleidon
+Sent: Wednesday, 28 June 2017 10:34 PM
+To: 'ADUG Members List'
+Subject: Re: [ADUG] Enumerated types - Helper records work for them too.
+
+Great, yes that works better.
+
+
+
+-----Original Message-----
+From: adug-members
+[mailto:] On Behalf Of
+Glen Kleidon
+Sent: Thursday, 29 June 2017 1:52 AM
+To: 'ADUG Members List'
+Subject: Re: [ADUG] Enumerated types - Helper records work for them too.
+
+Hello All,
+
+Thanks to Bob, we got a cleaner solution, but that also prompted me to have
+another visit of this:
+
+Implementing this with 1 step further  - Implicit casting to and from string
+- I got very close to what I wanted, and also close a generic method for any
+enum type.  Bit more work to be done on this and I think it would be quite a
+nice technique.
+
+I created a TLablledSomeType which is a labelled Record type encapsulating
+the Enum,
+
+You can use it like this:
+>>>>>>>>>>>>>>>
+var Stype: TSomeType;  // still ok to use the original type
+    SLType: TLabelledSomeType;  // new type implicitly casts the type
+between string and type ...
+ SLType := 'Option C';
+ If SLType.Enum in [MyOptionA,MyOptionB] then...  // pity we need the .enum
+qualifier...
+Writeln('Option type is '+SLtype); // "Option C"
+<<<<<<<<
+And of course you can do this as well:
+>>>>>>>>>>>>>>>>>>>>>>
+Stype := MyOptionC // or SLType.Enum = MyOptionC; SLType=Stype;
+<<<<<<<<<<<<<
+
+I am not quite sure why you cant do
+  Sltype := MyOptionC
+Though - probably the explicit cast is seeing that as an ordinal constant
+rather than a variable of type - adding the integer support would probably
+work...
+
+Here is the full example (and you can probably get to the next step) : which
+is this...
+
+TLabelledEnum<T> = Record
+    Enum:TSomeType;
+      Class Operator Implicit(AType: TLabelledEnum): string;
+      Class operator Implicit(ALabel: String): TLabelledEnum;
+      Class operator Implicit(AType: T): TLabelledSomeType;
+      Class operator Implicit(AType: TLabelledEnum<T>): T;
+   End;
+
+And then you could do  this for any type:
+  Type TMyNewType = (NewType1, NewType2, NewType3);
+  Const TMyNewTypeLabels: array[MyNewType] of string = ('New Type 1', 'New
+Type 2', 'New Type 3');  Type TLabelledMyNewType =
+TLabelledEnum<TMyNewType> ;
+
+And then use TLabelledMyNewType in your code to automatically cast. (and
+extend to support Integer type too).
+
+The tricky part to solving this is to not how to inject the Constants based
+on the type without explicitly assigning the labels as a string - although
+that would work, it is run time, not design time.
+
+The challenge goes out....
+
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+program SelfDescribingLabels;
+
+{$APPTYPE CONSOLE}
+
+{$R *.res}
+
+uses
+  System.SysUtils;
+  // Generic Type (Can be reused for any ENUM
+
+  Type
+
+   TSomeType = (MyOptionA, MyOptionB, MyOptionC);
+
+  Const
+   TSomeTypeAsString: array[TSomeType] of string =
+       ('Option A', 'Option B', 'Option C');
+
+   Type
+
+   TLabelledSomeType = Record
+      Enum:TSomeType;
+      Class Operator Implicit(AType: TLabelledSomeType): string;
+      Class operator Implicit(ALabel: String): TLabelledSomeType;
+      Class operator Implicit(AType: TSomeType): TLabelledSomeType;
+      Class operator Implicit(AType: TLabelledSomeType): TSomeType;
+   End;
+
+ { TSomeTypeLabels<TSomeType> }
+  class operator TLabelledSomeType.Implicit(AType: TSomeType):
+TLabelledSomeType;
+  begin
+    Result.Enum := AType;
+  end;
+
+  class operator TLabelledSomeType.Implicit(AType: TLabelledSomeType):
+string;
+  var lType : TSomeType;
+  begin
+     lType := AType;
+     Result:=TsomeTypeAsString[lType];
+  end;
+
+  class operator TLabelledSomeType.Implicit(AType: TLabelledSomeType):
+TSomeType;
+  begin
+    Result := AType.Enum;
+  end;
+
+  class operator TLabelledSomeType.Implicit(ALabel: String):
+TLabelledSomeType;
+  var i: integer;
+      lType: TSomeType;
+      lLabel: string;
+  begin
+   // should be nicer than this...
+     result.Enum := MyOptionA;
+     i:=-1;
+     for lLabel in TSomeTypeAsString do
+     begin
+      inc(i);
+      if SameText(ALabel,lLabel) then
+      begin
+        result.Enum := TSomeType(i);
+        exit;
+      end;
+     end;
+  end;
+
+var Stype: TSomeType;
+    SLType: TLabelledSomeType;
+
+
+From:  	"Glen Kleidon" 
+Date:  	Thu, 29 Jun 2017 02:15:34 +1000
+To:  	"'ADUG Members List'" <adug-members@..au>
+Subject:  	Re: [ADUG] Enumerated types - Helper records work for them too. PART 3
+Yep, that was it.
+
+Adding the ordinal (integer) implicit conversions did it.
+IE: Adding the following methods 
+ 
+  Class operator Implicit(AType: Integer): TLabelledSomeType;
+  Class operator Implicit(AType: TLabelledSomeType): Integer;
+
+Now the record type allows any of these conversions implicitly:
+
+  SLType := 'option a'
+  Writeln('Changed to '+slType);   //"Changed to Option A"
+OR
+   SLType := MyOptionB;
+ Writeln('Changed to '+slType);   //"Changed to Option B" 
+OR
+   SLType := 2
+  Writeln('Changed to '+slType);   //"Changed to OptionC"
+
+And there is no need to use the .Enum explicitly.  
+
+(note: I was working with XE5 for this example)
+
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+program SelfDescribingLabels;
+
+{$APPTYPE CONSOLE}
+
+{$R *.res}
+
+uses
+  System.SysUtils;
+  // Generic Type (Can be reused for any ENUM
+
+  Type
+
+   TSomeType = (MyOptionA, MyOptionB, MyOptionC);
+
+  Const
+   TSomeTypeAsString: array[TSomeType] of string =
+       ('Option A', 'Option B', 'Option C');
+
+   Type
+
+   TLabelledSomeType = Record
+      Enum:TSomeType;
+      Class Operator Implicit(AType: TLabelledSomeType): string;
+      Class operator Implicit(ALabel: String): TLabelledSomeType;
+      Class operator Implicit(AType: TSomeType): TLabelledSomeType;
+      Class operator Implicit(AType: TLabelledSomeType): TSomeType;
+      Class operator Implicit(AType: Integer): TLabelledSomeType;
+      Class operator Implicit(AType: TLabelledSomeType): Integer;
+   End;
+
+ { TSomeTypeLabels<TSomeType> }
+  class operator TLabelledSomeType.Implicit(AType: TSomeType):
+TLabelledSomeType;
+  begin
+    Result.Enum := AType;
+  end;
+
+  class operator TLabelledSomeType.Implicit(AType: TLabelledSomeType):
+string;
+  var lType : TSomeType;
+  begin
+     lType := AType;
+     Result:=TsomeTypeAsString[lType];
+  end;
+
+  class operator TLabelledSomeType.Implicit(AType: TLabelledSomeType):
+TSomeType;
+  begin
+    Result := AType.Enum;
+  end;
+
+  class operator TLabelledSomeType.Implicit(ALabel: String):
+TLabelledSomeType;
+  var i: integer;
+      lLabel: string;
+  begin
+   // should be nicer than this...
+     result.Enum := MyOptionA;
+     i:=-1;
+     for lLabel in TSomeTypeAsString do
+     begin
+      inc(i);
+      if SameText(ALabel,lLabel) then
+      begin
+        result.Enum := TSomeType(i);
+        exit;
+      end;
+     end;
+  end;
+
+  class operator TLabelledSomeType.Implicit(AType: Integer):
+TLabelledSomeType;
+  begin
+     result.Enum := TSomeType(Atype);
+  end;
+
+  class operator TLabelledSomeType.Implicit(AType: TLabelledSomeType):
+Integer;
+  begin
+    result := ord(AType.Enum);
+  end;
+
+var Stype: TSomeType;
+    SLType: TLabelledSomeType;
+    k:integer;
+
+begin
+  try
+   // You can now use SLType instead of STYPE
+
+   SLType := 'Option C';
+   Stype :=SLType;
+   if Stype=MyOptionC then
+     Writeln(format('Ord value of Stype is %d',[ord(Stype)]));
+
+   if SLType.Enum in [MyOptionA,MyOptionA] then writeln('Something when
+wrong')
+     else writeln('Yep, Stype is '+SLType);
+
+   SLType :='option a';
+   Writeln('Changed to '+slType);
+
+   SLType := MyOptionB;
+   Writeln('Changed to '+slType);
+
+   SLType := 2;
+   Writeln('Changed to '+slType);
+
+   readln;
+  except
+    on E: Exception do
+      Writeln(E.ClassName, ': ', E.Message);
+  end;
+end.<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
