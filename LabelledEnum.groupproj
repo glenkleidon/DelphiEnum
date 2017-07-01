@@ -1,0 +1,48 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{EC0BD0A6-30D1-477C-B0A3-AD1C4A293906}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="Selfdescribing.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="TestTLabelledEnum.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="Selfdescribing">
+        <MSBuild Projects="Selfdescribing.dproj"/>
+    </Target>
+    <Target Name="Selfdescribing:Clean">
+        <MSBuild Projects="Selfdescribing.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Selfdescribing:Make">
+        <MSBuild Projects="Selfdescribing.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="TestTLabelledEnum">
+        <MSBuild Projects="TestTLabelledEnum.dproj"/>
+    </Target>
+    <Target Name="TestTLabelledEnum:Clean">
+        <MSBuild Projects="TestTLabelledEnum.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="TestTLabelledEnum:Make">
+        <MSBuild Projects="TestTLabelledEnum.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="Selfdescribing;TestTLabelledEnum"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="Selfdescribing:Clean;TestTLabelledEnum:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="Selfdescribing:Make;TestTLabelledEnum:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>
