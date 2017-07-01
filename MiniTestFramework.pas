@@ -1,5 +1,6 @@
 unit MiniTestFramework;
 
+
 interface
 
 uses System.SysUtils,
@@ -7,25 +8,32 @@ uses System.SysUtils,
   System.rtti;
 
 Const
-  PASS_FAIL: array[0..1] of string = ('PASS', 'FAIL');
+  PASS_FAIL: array[0..2] of string = ('PASS', 'SKIP', 'FAIL');
   FOREGROUND_DEFAULT=7;
+  SKIPPED = True;
 
 var
   CurrentTestClass, CurrentTestCase: string;
-  TotalPassedTestCases: integer =0;
-  TotalFailedTestCases: integer =0;
-  TotalErrors         : integer =0;
-  TotalSets           : integer =0;
+  TotalPassedTestCases : integer =0;
+  TotalFailedTestCases : integer =0;
+  TotalSkippedTestCases: integer =0;
+  TotalErrors          : integer =0;
+  TotalSets            : integer =0;
 
-  SetPassedTestCases, SetFailedTestCases, SetErrors: integer;
+  SetPassedTestCases, SetFailedTestCases, SetErrors, SetSkippedTestCases: integer;
 
-Procedure TestSummary;
-Procedure NewTestSet(AClassName: string);
-Procedure SetTestCase(ACase: string; ATestClassName: string = '');
-Function  CheckIsTrue(AResult: boolean; AMessage: string = ''): boolean;
-Function  CheckIsEqual(AExpected, AResult: TValue;
-  AMessage: string = ''): boolean;
 Procedure Title(AText: string);
+Procedure SetTestCase(ACase: string; ATestClassName: string = '');
+Function  CheckIsEqual(AExpected, AResult: TValue;
+  AMessage: string = ''; ASkipped: boolean=false): boolean;
+Function  CheckIsTrue(AResult: boolean; AMessage: string = ''; ASkipped: boolean=false): boolean;
+Function  CheckIsFalse(AResult: boolean; AMessage: string = ''; ASkipped: boolean=false): boolean;
+Function  CheckNotEqual(AResult1, AResult2: TValue;
+  AMessage: string = ''; ASkipped: boolean=false): boolean;
+Function  NotImplemented(AMessage: string=''):boolean;
+Procedure TestSummary;
+procedure ClassResults;
+Procedure NewTestSet(AClassName: string);
 Function ConsoleScreenWidth:integer;
 Procedure Print(AText: String; AColour: smallint = FOREGROUND_DEFAULT);
 Procedure PrintLn(AText: String; AColour: smallint = FOREGROUND_DEFAULT);
@@ -50,6 +58,7 @@ const
   clPass  = FOREGROUND_GREEN;
   clMessage=FOREGROUND_CYAN;
   clDefault=FOREGROUND_DEFAULT;
+  clSkipped=FOREGROUND_PURPLE;
 
 var
   Screen_width: Integer =-1;
@@ -120,19 +129,31 @@ begin
   DoubleLine;
 end;
 
-function SetHasErrors: boolean;
+function SetHasErrors: smallint;
 begin
-  result := SetFailedTestCases+SetErrors<>0;
+  Result := 0;
+  if SetFailedTestCases+SetErrors>0 then result := 2
+  else if SetSkippedTestCases>0 then result := 1;
 end;
 
-function RunHasErrors: boolean;
+function RunHasErrors: smallint;
+var lSetResult : smallint;
 begin
-  result := SetHasErrors or (TotalFailedTestCases+TotalErrors<>0);
+  Result := 0;
+  if (TotalFailedTestCases+TotalErrors>0) then result := 2
+  else if TotalSkippedTestCases>0 then Result := 1;
+  if result = 2  then exit;
+  lSetResult := SetHasErrors;
+  if lSetResult>result then result := lSetResult;
 end;
 
-Function ResultColour(AHasErrors: boolean):smallInt;
+Function ResultColour(AHasErrors: smallint):smallInt;
 begin
-  if AHasErrors then Result := clError else Result := clPass;
+  case AHasErrors of
+    0:Result := clPass;
+    1:Result := clSkipped;
+  else Result := clError;
+  end;
 end;
 
 procedure ClassResults;
@@ -140,13 +161,15 @@ begin
 
   if (SetPassedTestCases=0) and
      (SetFailedTestCases=0) and
+     (SetSkippedTestCases=0) and
      (SetErrors=0)
   then exit;
 
   Println(
-     format(' Results> Passed:%-5d Failed:%-5d Errors:%-5d',[
+     format(' Results> Passed:%-5d Failed:%-5d Skipped:%-5d Errors:%-5d',[
               SetPassedTestCases,
               SetFailedTestCases,
+              SetSkippedTestCases,
               SetErrors
               ]),
      ResultColour(SetHasErrors)
@@ -159,11 +182,11 @@ Procedure TestSummary;
 begin
   NewTestSet('');
   Println(
-    format('Total Sets:%-5d Passed:%-5d Failed:%-5d Errors:%-5d',[
+    format('Total Sets:%-5d Passed:%-5d Failed:%-5d Skipped:%-5d Errors:%-5d',[
               TotalSets-1, TotalPassedTestCases,
-              TotalFailedTestCases, TotalErrors]
+              TotalFailedTestCases,TotalSkippedTestCases, TotalErrors]
     ),
-    ResultColour(RunHasErrors)
+    ResultColour(RunHasErrors or BACKGROUND_INTENSITY)
   );
 end;
 /////////// END SCREEN MANAGEMENT \\\\\\\\\\\\\\\\\
@@ -188,37 +211,59 @@ begin
   Inc(TotalErrors, SetErrors);
   SetPassedTestCases := 0;
   SetFailedTestCases := 0;
+  SetSkippedTestCases := 0;
   SetErrors := 0;
   SameTestCounter := 0;
   LastTestCase := '';
+  CurrentTestCase:='';
   CurrentTestClass:=AClassName;
 
 end;
 
-Function CheckIsEqual(AExpected, AResult: TValue;
-  AMessage: string = ''): boolean;
+Function Check(IsEqual: boolean; AExpected, AResult: TValue;
+  AMessage: string; ASkipped: boolean): boolean;
 var
   lMessage,lCounter: string;
   lResult: integer;
+  Outcome: Boolean;
+  lMessageColour: smallint;
 begin
   Result := false;
+  lMessageColour := clDefault;
   lResult := 0;
   try
+    if ASkipped then
+    begin
+      lResult:=1;
+      if Amessage='' then lMessage:='Test Skipped'
+       else lMessage := ' '+AMessage;
+      lMessageColour := clSkipped;
+      inc(SetSkippedTestCases);
+      exit;
+    end;
     try
       lMessage := '';
-      if AExpected.ToString <> AResult.ToString then
+      Outcome := AExpected.ToString = AResult.ToString;
+      if IsEqual<>Outcome then
       begin
-        lResult := 1;
+        lResult := 2;
         inc(SetFailedTestCases);
         if AMessage = '' then
-          lMessage := format('%s   Expected: %s%s   Actual  :%s',
-            [#13#10, AExpected.ToString, #13#10, AResult.ToString]);
+        begin
+          lMessageColour := clMessage;
+          if isEqual then
+            lMessage := format('%s   Expected:<%s>%s   Actual  :<%s>',
+             [#13#10, AExpected.ToString, #13#10, AResult.ToString])
+          else
+            lMessage := format('%s   Expected outcomes to differ, but both returned %s%s',
+             [#13#10, AExpected.ToString]);
+        end;
       end;
       inc(SetPassedTestCases);
     except
       on e: exception do
       begin
-        lResult := 1;
+        lResult := 2;
         lMessage := e.Message;
         inc(SetErrors);
       end;
@@ -227,26 +272,66 @@ begin
     if LastTestCase=CurrentTestCase then inc(SameTestCounter) else SameTestCounter:=1;
     LastTestCase := CurrentTestCase;
     if SameTestCounter=1 then lCounter := '' else lCounter := '-'+SameTestCounter.ToString;
-    Print(format('  %s-%s%s', [PASS_FAIL[lResult],CurrentTestCase,lCounter]));
-    Println(lMessage,clMessage);
+    if CurrentTestCase = '' then
+    begin
+     CurrentTestCase:=copy('Test for '+CurrentTestClass,1,ConsoleScreenWidth-4);
+     if lCounter='' then
+     begin
+      lCounter:='-1';
+      LastTestCase := CurrentTestCase;
+     end;
+
+    end;
+
+    Print(format('  %s-',[PASS_FAIL[lResult]]),lMessageColour);
+    Print(format('%s%s', [CurrentTestCase,lCounter]));
+    Println(lMessage,lMessageColour);
+    Result := (lResult=0);
   end;
 end;
 
-Function CheckIsTrue(AResult: boolean; AMessage: string): boolean;
+Function CheckIsEqual(AExpected, AResult: TValue;
+  AMessage: string = '';ASkipped: boolean=false): boolean;
 begin
-  Result := CheckIsEqual(True, AResult);
+  Result := check(true,AExpected, AResult, Amessage, ASkipped);
 end;
+
+Function CheckNotEqual(AResult1, AResult2: TValue;
+  AMessage: string; ASkipped: boolean): boolean;
+begin
+  Result := check(false,AResult1, AResult2, Amessage, ASkipped);
+end;
+
+Function CheckIsTrue(AResult: boolean; AMessage: string;ASkipped: boolean): boolean;
+begin
+  Result := CheckIsEqual(True, AResult, AMessage,ASkipped);
+end;
+
+Function CheckisFalse(AResult: boolean; AMessage: string; ASkipped: boolean): boolean;
+begin
+  Result := CheckIsEqual(False, AResult,AMessage,ASkipped);
+end;
+
+Function NotImplemented(AMessage: string = ''): boolean;
+var lMessage: string;
+begin
+  if AMessage='' then lMessage:='Not Implemented'
+    else lMessage := AMessage;
+  Result := CheckisTrue(true,lMessage,Skipped);
+end;
+
 
 procedure SetTestCase(ACase: string; ATestClassName: string);
 begin
-  if ACase <> '' then
-    CurrentTestCase := ACase;
 
   if (ATestClassName <> '') and
      (
        (ACase='') OR
        (CurrentTestClass<>ATestClassName)
      ) then NewTestSet(ATestClassName);
+
+   if ACase <> '' then
+    CurrentTestCase := ACase;
 
 end;
 

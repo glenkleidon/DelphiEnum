@@ -58,7 +58,7 @@ var s: string;
     lMyType : TLabelledMyType;
 begin
   NewTestSet('Implicit Static Type Casting Assigns expected Values');
-  // do not use implict cast to set the type here.
+
   lMyType := TMyType.MyOptionA;
   SetTestCase('Implicit Cast of TMyType.MyOptionA to String matches "MyOptionA"');
   s := lMyType;
@@ -67,22 +67,20 @@ begin
   lMyType := TMyType.MyOptionB;
   SetTestCase('Implicit Cast of TMyType.MyOptionB to String matches "MyOptionB');
   s := lMyType;
-  CheckIsEqual(s,'MyOptionb');
+  CheckIsEqual(s,'MyOptionB');
 
   lMyType := TMyType.MyOptionC;
   SetTestCase('Implicit Cast of TMyType.MyOptionC to String matches "MyOptionC"');
   s := lMyType;
-  CheckIsEqual(s,'MyOptionc');
+  CheckIsEqual(s,'MyOptionC');
 
 end;
-
 
 procedure Implicit_String_Assignment_Assigns_Values;
 var staticType : TMyType;
     lMyType : TLabelledMyType;
 begin
   NewTestSet('Without Labels Implicit String Casting Assigns expected Values');
-  // do not use implict cast to set the type here.
 
   SetTestCase('Implicit Cast of lowercase string matches TMyType options');
 
@@ -102,7 +100,37 @@ begin
 
 end;
 
+Procedure Static_Class_Function_AsString_Works_as_expected;
+var s: string;
+begin
+  NewTestSet('Without labels Static Class function returns correct Identifiers');
 
+  s := TLabelledMyType(TMyType.MyOptionA);
+  checkIsEqual('MyOptionA',s);
+
+  s := TLabelledMyType(TMyType.MyOptionB);
+  checkIsEqual('MyOptionb',s);
+
+  s := TLabelledMyType(TMyType.MyOptionC);
+  checkIsEqual('MyOptionC',s);
+
+end;
+procedure Assigning_Labels_assigns_alternate_labels;
+begin
+  NewTestSet('Assigning Labels assigns alternate labels');
+  NotImplemented;
+end;
+Procedure Implicit_Labelled_String_Assignment_Label_or_Identifier_Assigns_Values;
+begin
+  NewTestSet('Correct value assigned using label or Identifier');
+  NotImplemented;
+end;
+
+Procedure Static_Class_Function_Labelled_AsString_returns_labels_as_expected;
+begin
+  NewTestSet('Static Class Function As String Return Labels as Expected');
+  NotImplemented;
+end;
 
 begin
   try
@@ -111,6 +139,13 @@ begin
     Without_Labels_Labelled_Enums_match_Static_types;
     Implicit_Static_Type_Assignment_Assigns_Values;
     Implicit_String_Assignment_Assigns_Values;
+    Static_Class_Function_AsString_Works_as_expected;
+
+    // Set Labels
+    Assigning_Labels_assigns_alternate_labels;
+    Implicit_Labelled_String_Assignment_Label_or_Identifier_Assigns_Values;
+    Static_Class_Function_Labelled_AsString_returns_labels_as_expected;
+
 
 
 {

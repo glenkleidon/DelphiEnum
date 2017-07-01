@@ -26,6 +26,7 @@ Type
     Property TypeName: string read GetEnumTypeName;
     Function ValueName: string;
     Property Labels: TLabelAliases read getLabels write setLabels;
+    Class function AsString(AType: T): string; static;
     Class Operator Implicit(AType: TLabelledEnum<T>): string;
     Class operator Implicit(ALabel: String): TLabelledEnum<T>;
     Class operator Implicit(AType: T): TLabelledEnum<T>;
@@ -193,6 +194,13 @@ begin
     v2 := @Result.Enum;
     v2^ := ATypeINdex AND $FFFF;
   end;
+end;
+
+class function TLabelledEnum<T>.AsString(AType: T): string;
+var lType: TLabelledEnum<T>;
+begin
+ lType := Atype;
+ result := lType;
 end;
 
 procedure TLabelledEnum<T>.CheckType;
