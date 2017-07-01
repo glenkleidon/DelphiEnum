@@ -19,7 +19,7 @@ Type
     procedure setLabels(const Value: TLabelAliases);
     function getLabels: TLabelAliases;
   public
-    EnumTypeInfo: PTypeInfo;
+    InternalTypeInfo: PTypeInfo;
     Enum: T;
     Procedure Clear;
     Procedure CheckType;
@@ -43,15 +43,15 @@ Type
 // GetAliasEnumValue called "GetAliasEnumName(TypeInfo: PTypeInfo; const Integer): string
 // But, because it doesn't we have to keep our own Factory implementation here.
   TLabelledEnumAliasEntry = Record
-    EnumTypeInfo: PTypeInfo;
+    InternalTypeInfo: PTypeInfo;
     AliasArray: TLabelAliases;
   End;
 var LabelledEnumAliases :TArray<TLabelledEnumAliasEntry>;
 
 Procedure RegisterEnumAlias(Const ATypeInfo:PTypeInfo; AAliases: TLabelAliases);
-Function GetEnumNameList(ATypeInfo: PTypeInfo; AStart: Integer;
+Function GetEnumNameList(ATypeInfo: PTypeInfo; AStart: Integer=0;
         ACount: Integer = -1): TArray<String>;
-Function GetEnumAliasList(ATypeInfo:PTypeInfo; Astart: Integer;
+Function GetEnumAliasList(ATypeInfo:PTypeInfo; Astart: Integer=0;
         ACount: Integer = -1): TArray<String>;
 
 
@@ -70,17 +70,17 @@ begin
 
    // Check For Duplicate
    for lLabelEntry in LabelledEnumAliases do
-     if SameText(lTargetName, string(lLabelEntry.EnumTypeInfo.Name)) then exit;
+     if SameText(lTargetName, string(lLabelEntry.InternalTypeInfo.Name)) then exit;
    l := length(LabelledEnumAliases);
    setlength(LabelledEnumAliases,l+1);
-   LabelledEnumAliases[l].EnumTypeInfo := ATypeInfo;
+   LabelledEnumAliases[l].InternalTypeInfo := ATypeInfo;
    setlength(LabelledEnumAliases[l].AliasArray,length(AAliases));
    for i := Low(AAliases) to High(AAliases) do
      LabelledEnumAliases[l].AliasArray[i] := AAliases[i];
 end;
 
 
-Function GetEnumAliasList(ATypeInfo:PTypeInfo; Astart: Integer;
+Function GetEnumAliasList(ATypeInfo:PTypeInfo; Astart: Integer=0;
         ACount: Integer = -1): TLabelAliases;
 var
    lLabelEntry:TLabelledEnumAliasEntry;
@@ -96,7 +96,7 @@ begin
      // just use the Pointer directly eg
      // if AtypeInfo=lLabelEntry.TypeInfo, but just in case, we'll check
      // the Type Name
-     if (AtypeInfo=lLabelEntry.EnumTypeInfo) and (AtypeInfo.Name = lLabelEntry.EnumTypeInfo.Name) then
+     if (AtypeInfo=lLabelEntry.InternalTypeInfo) and (AtypeInfo.Name = lLabelEntry.InternalTypeInfo.Name) then
      begin
        setlength(Result,(lEnd-AStart+1));
        p := -1;
@@ -111,7 +111,7 @@ begin
 end;
 
 
-Function GetEnumNameList(ATypeInfo: PTypeInfo; AStart: Integer;
+Function GetEnumNameList(ATypeInfo: PTypeInfo; AStart: Integer=0;
         ACount: Integer = -1): TArray<String>;
 var lEnd,i: integer;
     P : pointer; // pointing to the array of namelist
@@ -142,17 +142,6 @@ begin
 
 end;
 
-function HashTypeInfo(TypeInfo: PTypeInfo): Byte;
-var
-  I: Integer;
-  Value: NativeUInt;
-begin
-  Result := $B5;
-  Value := NativeUInt(TypeInfo);
-  for I := 0 to SizeOf(TypeInfo) - 1 do
-    Result := Result xor ((Value shr (I * SizeOf(Byte))) and $FF);
-end;
-
 { TLabels<T> }
 class operator TLabelledEnum<T>.Implicit(AType: T): TLabelledEnum<T>;
 begin
@@ -167,13 +156,13 @@ begin
   AType.checkType;
   v := AType;
 
-  lAliases := GetEnumAliasList(AType.EnumTypeInfo,v,1);
+  lAliases := GetEnumAliasList(AType.InternalTypeInfo,v,1);
   if length(lAliases)>=1 then
   begin
     Result := lAliases[0];
     if Result.Length>0 then exit;
   end;
-  Result := getEnumName(AType.EnumTypeInfo, v);
+  Result := getEnumName(AType.InternalTypeInfo, v);
 end;
 
 class operator TLabelledEnum<T>.Implicit(AType: TLabelledEnum<T>): T;
@@ -185,7 +174,7 @@ class operator TLabelledEnum<T>.Implicit(ALabel: String): TLabelledEnum<T>;
 begin
   // uses implicit cast to set the integer value;
   Result.CheckType;
-  Result := GetEnumValue(Result.EnumTypeInfo, ALabel);
+  Result := GetEnumValue(Result.InternalTypeInfo, ALabel);
 end;
 
 class operator TLabelledEnum<T>.Implicit(ATypeIndex: Integer): TLabelledEnum<T>;
@@ -233,13 +222,13 @@ end;
 
 function TLabelledEnum<T>.GetEnumTypeName: string;
 begin
-  result := string(Self.EnumTypeInfo.Name);
+  result := string(Self.InternalTypeInfo.Name);
 end;
 
 function TLabelledEnum<T>.getLabels: TLabelAliases;
 begin
   CheckType;
-  Result:= GetEnumAliasList(EnumTypeInfo,0);
+  Result:= GetEnumAliasList(InternalTypeInfo,0);
 end;
 
 function TLabelledEnum<T>.GetTypeName: string;
@@ -281,18 +270,18 @@ end;
 procedure TLabelledEnum<T>.setLabels(const Value: TLabelAliases);
 begin
   CheckType;
-  if Not (self.fLabels = nil) then RemoveEnumElementAliases(EnumTypeInfo);
-  System.TypInfo.AddEnumElementAliases(EnumTypeInfo, Value);
+  if Not (self.fLabels = nil) then RemoveEnumElementAliases(InternalTypeInfo);
+  System.TypInfo.AddEnumElementAliases(InternalTypeInfo, Value);
   // again because we cant directly access the system.typeinfo's copy of the
   // EnumALiases array, we will need to keep a copy
-  RegisterEnumAlias(EnumTypeInfo,Value);
+  RegisterEnumAlias(InternalTypeInfo,Value);
 end;
 
 procedure TLabelledEnum<T>.SetType;
 begin
   Self.fLabels := nil;
-  self.EnumTypeInfo := Typeinfo(T);
-  fTypeName := System.TypInfo.GetTypeName(EnumTypeInfo);
+  self.InternalTypeInfo := Typeinfo(T);
+  fTypeName := System.TypInfo.GetTypeName(InternalTypeInfo);
 end;
 
 function TLabelledEnum<T>.ValueName: string;
@@ -300,7 +289,7 @@ var v: integer;
 begin
   CheckType;
   v := Self;
-  Result := getEnumName(EnumTypeInfo,v );
+  Result := getEnumName(InternalTypeInfo,v );
 end;
 
 end.
