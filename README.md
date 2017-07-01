@@ -114,7 +114,9 @@ not just the internal name of the element;
 I posted this little tit-bit on the ADUG mailing group and I got encouraging and helpful replies from 
   + John McDonald
   + Bob Swart (Dr Bob)
+  + Aaron Christiansen
   + Jared Davison
+  
  The Email Trail is in the repo. Thanks to All.
 
 This got me thinking even further and I decided that it would be possible to extend the concept to allow for 
