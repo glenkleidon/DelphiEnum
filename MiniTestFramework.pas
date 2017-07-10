@@ -31,6 +31,7 @@ Function  CheckIsFalse(AResult: boolean; AMessage: string = ''; ASkipped: boolea
 Function  CheckNotEqual(AResult1, AResult2: TValue;
   AMessage: string = ''; ASkipped: boolean=false): boolean;
 Function  NotImplemented(AMessage: string=''):boolean;
+Function  TotalTests: integer;
 Procedure TestSummary;
 procedure ClassResults;
 Procedure NewTestSet(AClassName: string);
@@ -64,7 +65,17 @@ var
   Screen_width: Integer =-1;
   Console_Handle: THandle = 0;
 
-
+Function  TotalTests: integer;
+begin
+  result := TotalPassedTestCases +
+            TotalFailedTestCases +
+            TotalSkippedTestCases +
+            TotalErrors +
+            SetPassedTestCases +
+            SetFailedTestCases +
+            SetSkippedTestCases +
+            SetErrors;
+end;
 
 Function ConsoleHandle:THandle;
 begin
@@ -148,12 +159,16 @@ begin
 end;
 
 Function ResultColour(AHasErrors: smallint):smallInt;
+var lIntesity: byte;
 begin
-  case AHasErrors of
+  case AHasErrors AND 3 of
     0:Result := clPass;
     1:Result := clSkipped;
   else Result := clError;
   end;
+  lIntesity := AHasErrors and 255 and
+      (BACKGROUND_INTENSITY or FOREGROUND_INTENSITY);
+  result := result or lIntesity;
 end;
 
 procedure ClassResults;
@@ -182,11 +197,12 @@ Procedure TestSummary;
 begin
   NewTestSet('');
   Println(
-    format('Total Sets:%-5d Passed:%-5d Failed:%-5d Skipped:%-5d Errors:%-5d',[
+    format('Total Sets:%-5d Tests:%-5d Passed:%-5d Failed:%-5d Skipped:%-5d Errors:%-5d',[
               TotalSets-1, TotalPassedTestCases,
+              TotalTests,
               TotalFailedTestCases,TotalSkippedTestCases, TotalErrors]
     ),
-    ResultColour(RunHasErrors or BACKGROUND_INTENSITY)
+    ResultColour(RunHasErrors or FOREGROUND_INTENSITY)
   );
 end;
 /////////// END SCREEN MANAGEMENT \\\\\\\\\\\\\\\\\
@@ -208,6 +224,7 @@ begin
   inc(totalSets);
   inc(TotalPassedTestCases, SetPassedTestCases);
   Inc(TotalFailedTestCases, SetFailedTestCases);
+  inc(TotalSkippedTestCases, SetSkippedTestCases);
   Inc(TotalErrors, SetErrors);
   SetPassedTestCases := 0;
   SetFailedTestCases := 0;

@@ -13,6 +13,9 @@ uses
 Const
       TMyLabels : TArray<String> =
         ['Option A', 'Option B', 'Option C'];
+
+      TMyAlternateLabels: TArray<String> =
+        ['Option 1', 'Option 2', 'Option 3'];
   Type
       TMyType  = (MyOptionA, MyOptionB, MyOptionC);
       TLabelledMyType = TLabelledEnum<TMyType>;
@@ -109,27 +112,62 @@ begin
   checkIsEqual('MyOptionA',s);
 
   s := TLabelledMyType(TMyType.MyOptionB);
-  checkIsEqual('MyOptionb',s);
+  checkIsEqual('MyOptionB',s);
 
   s := TLabelledMyType(TMyType.MyOptionC);
   checkIsEqual('MyOptionC',s);
 
 end;
+
 procedure Assigning_Labels_assigns_alternate_labels;
+var lMyType : TLabelledMyType;
+    lLabels : TArray<string>;
+    s: string;
 begin
   NewTestSet('Assigning Labels assigns alternate labels');
-  NotImplemented;
+  lMyType.Labels := TMyLabels;
+
+  lLabels := GetEnumAliasList(lMyTYpe.InternalTypeInfo);
+
+  checkisEQual(3,length(lLabels));
+
+  s := lLabels[0];
+  checkIsEqual('Option A',s);
+
+  s := lLabels[1];
+  checkIsEqual('Option B',s);
+
+  s := lLabels[2];
+  checkIsEqual('Option C',s);
+
 end;
 Procedure Implicit_Labelled_String_Assignment_Label_or_Identifier_Assigns_Values;
+var lMyType : TLabelledMyType;
 begin
   NewTestSet('Correct value assigned using label or Identifier');
-  NotImplemented;
+  lMyType := 'Option A';
+  checkIsTrue(TMyType.MyOptionA=lMyType.enum);
+  lMyType := 'MyOptionb';
+  checkIstrue(TMyType.MyOptionB=lMyType.enum);
+  lMyType := 'option c';
+  checkIsTrue(TMyType.MyOptionC=lMyType.enum);
+  lMyType := 'MYOPTIONA';
+  checkIsTrue(TMyType.MyOptionA=lMyType.enum);
 end;
 
 Procedure Static_Class_Function_Labelled_AsString_returns_labels_as_expected;
+var s: string;
 begin
   NewTestSet('Static Class Function As String Return Labels as Expected');
-  NotImplemented;
+
+  s := TLabelledMyType(TMyType.MyOptionA);
+  checkIsEqual('Option A',s);
+
+  s := TLabelledMyType(TMyType.MyOptionB);
+  checkIsEqual('Option B',s);
+
+  s := TLabelledMyType(TMyType.MyOptionC);
+  checkIsEqual('Option C',s);
 end;
 
 begin
