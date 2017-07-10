@@ -16,6 +16,9 @@ Const
 
       TMyAlternateLabels: TArray<String> =
         ['Option 1', 'Option 2', 'Option 3'];
+
+  ALTERNATE_CONTEXT ='AlternateContext';
+
   Type
       TMyType  = (MyOptionA, MyOptionB, MyOptionC);
       TLabelledMyType = TLabelledEnum<TMyType>;
@@ -25,9 +28,9 @@ var StaticNames : TArray<String>;
 begin
   NewTestSet('Get Static Types using GetEnumNameList');
   StaticNames :=Enum.GetEnumNameList(TypeHandle(TMyTYpe));
-  SetTestCase('GetEnumNameList returns 3 Values');
+  NewTestCase('GetEnumNameList returns 3 Values');
   CheckIsEqual(3,length(StaticNames));
-  SetTestCase('GetEnumNameList Array elements match MyLabels');
+  NewTestCase('GetEnumNameList Array elements match MyLabels');
   CheckIsEqual(StaticNames[0],'MyOptionA');
   CheckIsEqual(StaticNames[1],'MyOptionB');
   CheckIsEqual(StaticNames[2],'MyOptionC');
@@ -40,17 +43,17 @@ begin
   NewTestSet('Without Labels, Lablled Enum Implict String cast matches Static Values');
   // do not use implict cast to set the type here.
   lMyType.Enum := TMyType.MyOptionA;
-  SetTestCase('Implicit Cast of TMyType.MyOptionA to String matches "MyOptionA"');
+  NewTestCase('Implicit Cast of TMyType.MyOptionA to String matches "MyOptionA"');
   s := lMyType;
   CheckIsEqual(s,'MyOptionA');
 
   lMyType.Enum := TMyType.MyOptionB;
-  SetTestCase('Implicit Cast of TMyType.MyOptionB to String matches "MyOptionB');
+  NewTestCase('Implicit Cast of TMyType.MyOptionB to String matches "MyOptionB');
   s := lMyType;
   CheckIsEqual(s,'MyOptionB');
 
   lMyType.Enum := TMyType.MyOptionC;
-  SetTestCase('Implicit Cast of TMyType.MyOptionC to String matches "MyOptionC"');
+  NewTestCase('Implicit Cast of TMyType.MyOptionC to String matches "MyOptionC"');
   s := lMyType;
   CheckIsEqual(s,'MyOptionC');
 
@@ -63,17 +66,17 @@ begin
   NewTestSet('Implicit Static Type Casting Assigns expected Values');
 
   lMyType := TMyType.MyOptionA;
-  SetTestCase('Implicit Cast of TMyType.MyOptionA to String matches "MyOptionA"');
+  NewTestCase('Implicit Cast of TMyType.MyOptionA to String matches "MyOptionA"');
   s := lMyType;
   CheckIsEqual(s,'MyOptionA');
 
   lMyType := TMyType.MyOptionB;
-  SetTestCase('Implicit Cast of TMyType.MyOptionB to String matches "MyOptionB');
+  NewTestCase('Implicit Cast of TMyType.MyOptionB to String matches "MyOptionB');
   s := lMyType;
   CheckIsEqual(s,'MyOptionB');
 
   lMyType := TMyType.MyOptionC;
-  SetTestCase('Implicit Cast of TMyType.MyOptionC to String matches "MyOptionC"');
+  NewTestCase('Implicit Cast of TMyType.MyOptionC to String matches "MyOptionC"');
   s := lMyType;
   CheckIsEqual(s,'MyOptionC');
 
@@ -85,9 +88,9 @@ var staticType : TMyType;
 begin
   NewTestSet('Without Labels Implicit String Casting Assigns expected Values');
 
-  SetTestCase('Implicit Cast of lowercase string matches TMyType options');
+  NewTestCase('Implicit Cast of lowercase string matches TMyType options');
 
-  SetTestCase('Implicit Cast of lowercase string matches TMyType options');
+  NewTestCase('Implicit Cast of lowercase string matches TMyType options');
   lMyType := 'myoptionb';
   staticType := TMyType.MyOptionB;
   CheckIsEqual(Ord(StaticType),Ord(lMyType.Enum));
@@ -170,6 +173,86 @@ begin
   checkIsEqual('Option C',s);
 end;
 
+Procedure Add_second_Set_of_Labels_With_Different_context_Adds_independently;
+var lNewLabels,
+    lOldLabels,
+    lOriginalLabels : TArray<string>;
+    i: integer;
+begin
+  NewTestSet('A Second Set of Labels can set Independently');
+
+  lOriginalLabels := TLabelledMyType.GetTypeLabels();
+  TLabelledMyType.SetTypeLabels(TMyAlternateLabels, ALTERNATE_CONTEXT);
+  lOldLabels := TLabelledMyType.GetTypeLabels();
+  lNewLabels := TLabelledMyType.GetTypeLabels(ALTERNATE_CONTEXT);
+  for i := 0 to 2 do
+  begin
+    CheckIsEqual(LOriginalLabels[i],lOldLabels[i]);
+    CheckIsEqual(TMyAlternateLabels[i],LNewLabels[i]);
+  end;
+end;
+
+procedure Remove_independently_removes_Second_set_Of_Labels;
+var lLabels,
+    lOriginalLabels : TArray<string>;
+    i: integer;
+    lMyType : TLabelledMyType;
+begin
+  NewTestSet('Removing Second set of Labels does not affect default');
+  lOriginalLabels := TLabelledMyType.GetTypeLabels();
+  TLabelledMyType.ClearTypeLabels(ALTERNATE_CONTEXT);
+  lLabels := TLabelledMyType.GetTypeLabels();
+  for i := 0 to 2 do
+    CheckIsEqual(LOriginalLabels[i],lLabels[i]);
+
+  NewTestCase('Original Labels Can Assign Enum');
+  lMyType := 'Option c';
+  checkIsTrue(TMyType.MyOptionC=lMyType.enum);
+
+  NewTestSet('Second set of Labels no longer Accessible');
+  lLabels := TLabelledMyType.GetTypeLabels(ALTERNATE_CONTEXT);
+  CheckIsEqual(0,length(lLabels));
+
+  lMyType := 'Option 2';
+  checkisFalse(TMyType.MyOptionB=lMyType.enum);
+
+  lMyType := 'Option 1';
+  checkisFalse(TMyType.MyOptionA=lMyType.enum);
+
+end;
+
+procedure Use_Multiple_Contexts_works_as_Expected;
+var i: integer;
+    lMyType1, lMyType2 : TLabelledMyType;
+begin
+  NewTestSet('Two Contexts work As Expected');
+  TLabelledMyType.SetTypeLabels(TMyAlternateLabels, ALTERNATE_CONTEXT);
+  lMyType2.Context := ALTERNATE_CONTEXT;
+
+  for i := 0 to 2 do
+  begin
+    lmyType1 := i;
+    lmyType2 := i;
+    NewTestCase('Label '+i.ToString+' for mytype1 <> myType2');
+    CheckIsfalse(lmyType1+''=lmyType2+'');
+    NewTestCase('Label '+i.ToString+' for mytype2 = Expected Label');
+    CheckIsEqual(TMyAlternateLabels[i],lmyType2+'');
+  end;
+
+  NewTestCase('Changing Context Changes Expected Label');
+  lMyType1.Context := ALTERNATE_CONTEXT;
+  for i := 0 to 2 do
+  begin
+    lmyType1 := i;
+    lmyType2 := i;
+    NewTestCase('Label '+i.ToString+' for mytype1 <> myTyp2');
+    CheckIsTrue(lmyType1+''=lmyType2+'');
+    NewTestCase('Label '+i.ToString+' for mytype2 = Expected Label');
+    CheckIsEqual(TMyAlternateLabels[i],lmyType2+'');
+  end;
+
+end;
+
 begin
   try
     Title('MiniTest - Test cases for TLabelledEnum');
@@ -184,53 +267,18 @@ begin
     Implicit_Labelled_String_Assignment_Label_or_Identifier_Assigns_Values;
     Static_Class_Function_Labelled_AsString_returns_labels_as_expected;
 
+    // Label Context
+    Add_second_Set_of_Labels_With_Different_context_Adds_independently;
+    Remove_independently_removes_Second_set_Of_Labels;
+    Use_Multiple_Contexts_works_as_Expected;
 
 
-{
-    Writeln('Using Class methods to get the label names of the static type');
+    TestSummary;
+
+    if sameText(Paramstr(1),'/p') then ReadLn;
 
 
-
-    SlType := MyOptionB;
-    Writeln('Without Labels, MyOptionB is "' + slType+'"');
-
-
-    SLType.Labels := TMyLabels;
-    Writeln('With Labels, MyOptionB is "' + slType+'"');
-
-   Writeln('Changing SLType to MyOptionC using string assignment...');
-   SLType := 'Option C';
-   OptionEnum :=SLType;
-   s := SLType;
-
-   if OptionEnum=MyOptionC then
-     Writeln(format('Successfully Changed to "%s" (%d)',[s,ord(OptionEnum)]))
-   else Writeln(format('Fail - Changed to "%s" (%d) instead.',[s,integer(SlType)]));
-
-   Writeln('Checking for Type in a set with implict casting.');
-   if SLType in [MyOptionA,MyOptionA] then writeln('Something went wrong')
-     else writeln('Yep, Stype is '+SLType);
-
-   SLType :='option a';
-   Writeln('Changing to "option a"  (string assignment)  shows "'+slType+'"');
-
-   SLType := 'MyOptionB';
-   Writeln('Changing to "MyOptionB" (string assignment)  shows "'+slType+'"');
-
-   SLType := 2;
-   Writeln('Changing to "2"         (integer assignment) shows "'+slType+'"');
-
-   SLType := MyOptionA;
-   Writeln('Changing to MyOptionA   (Static assignment)  shows "'+slType+'"');
-   Writeln('Static Name of "'+slType+'" is "'+slType.ValueName+'"');
-
- }
-   TestSummary;
-
-   if sameText(Paramstr(1),'/p') then ReadLn;
-
-
-   ExitCode := TotalErrors+TotalFailedTestCases;
+    ExitCode := TotalErrors+TotalFailedTestCases;
 
   except
     on E: Exception do

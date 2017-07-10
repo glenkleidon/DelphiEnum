@@ -23,7 +23,7 @@ var
   SetPassedTestCases, SetFailedTestCases, SetErrors, SetSkippedTestCases: integer;
 
 Procedure Title(AText: string);
-Procedure SetTestCase(ACase: string; ATestClassName: string = '');
+Procedure NewTestCase(ACase: string; ATestClassName: string = '');
 Function  CheckIsEqual(AExpected, AResult: TValue;
   AMessage: string = ''; ASkipped: boolean=false): boolean;
 Function  CheckIsTrue(AResult: boolean; AMessage: string = ''; ASkipped: boolean=false): boolean;
@@ -338,7 +338,7 @@ begin
 end;
 
 
-procedure SetTestCase(ACase: string; ATestClassName: string);
+procedure NewTestCase(ACase: string; ATestClassName: string);
 begin
 
   if (ATestClassName <> '') and
