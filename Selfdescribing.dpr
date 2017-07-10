@@ -32,8 +32,9 @@ begin
     Writeln('     type  TMyType  = (MyOptionA, MyOptionB, MyOptionC)');
     Writeln('           TLabelledMyType = TLabelledEnum<TMyType>;');
     Writeln('     var   OptionEnum = TLabelledMyType;');
+    Writeln('           ThisType: integer;');
     Writeln('     Begin');
-    Writeln('       OptionEnum.Labels:=TMyLabels;  ');
+    Writeln('       TLabelledMyType.SetTypeLabels(TMyLabels);  ');
     Writeln('       OptionEnum:=MyOptionA;  ');
     Writeln('       ThisType:=OptionEnum;');
     Writeln('       if (OptionEnum = ''option a'') then OptionEnum := ThisType+1;');
@@ -43,7 +44,7 @@ begin
 
     Writeln('Execute above Example:');
 
-    OptionEnum.Labels:=TMyLabels;
+    TLabelledMyType.SetTypeLabels(TMyLabels);
     OptionEnum:=MyOptionA;
     ThisType:=OptionEnum;
     if (OptionEnum = 'option a') then OptionEnum := ThisType+1;
