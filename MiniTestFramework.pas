@@ -3,52 +3,13 @@ unit MiniTestFramework;
 
 interface
 
-uses System.SysUtils,
-  System.Generics.collections,
-  System.rtti;
+uses SysUtils, windows, Variants;
 
 Const
   PASS_FAIL: array[0..2] of string = ('PASS', 'SKIP', 'FAIL');
   FOREGROUND_DEFAULT=7;
   SKIPPED = True;
 
-var
-  CurrentTestClass, CurrentTestCase: string;
-  TotalPassedTestCases : integer =0;
-  TotalFailedTestCases : integer =0;
-  TotalSkippedTestCases: integer =0;
-  TotalErrors          : integer =0;
-  TotalSets            : integer =0;
-
-  SetPassedTestCases, SetFailedTestCases, SetErrors, SetSkippedTestCases: integer;
-
-Procedure Title(AText: string);
-Procedure NewTestCase(ACase: string; ATestClassName: string = '');
-Function  CheckIsEqual(AExpected, AResult: TValue;
-  AMessage: string = ''; ASkipped: boolean=false): boolean;
-Function  CheckIsTrue(AResult: boolean; AMessage: string = ''; ASkipped: boolean=false): boolean;
-Function  CheckIsFalse(AResult: boolean; AMessage: string = ''; ASkipped: boolean=false): boolean;
-Function  CheckNotEqual(AResult1, AResult2: TValue;
-  AMessage: string = ''; ASkipped: boolean=false): boolean;
-Function  NotImplemented(AMessage: string=''):boolean;
-Function  TotalTests: integer;
-Procedure TestSummary;
-procedure ClassResults;
-Procedure NewTestSet(AClassName: string);
-Function ConsoleScreenWidth:integer;
-Procedure Print(AText: String; AColour: smallint = FOREGROUND_DEFAULT);
-Procedure PrintLn(AText: String; AColour: smallint = FOREGROUND_DEFAULT);
-
-implementation
-uses windows;
-
-var
-  SameTestCounter :integer = 0;
-  LastTestCase: string;
-
-
-///////////  SCREEN MANAGEMENT \\\\\\\\\\\\\\\\\
-const
   DEFAULT_SCREEN_WIDTH=80;
   FOREGROUND_CYAN=3;
   FOREGROUND_YELLOW=6;
@@ -60,6 +21,45 @@ const
   clMessage=FOREGROUND_CYAN;
   clDefault=FOREGROUND_DEFAULT;
   clSkipped=FOREGROUND_PURPLE;
+Type
+  TComparitorType = Variant;
+var
+  ExpectedException,
+  CurrentTestClass, CurrentTestCase: string;
+  TotalPassedTestCases : integer =0;
+  TotalFailedTestCases : integer =0;
+  TotalSkippedTestCases: integer =0;
+  TotalErrors          : integer =0;
+  TotalSets            : integer =0;
+
+  SetPassedTestCases, SetFailedTestCases, SetErrors, SetSkippedTestCases: integer;
+
+Procedure Title(AText: string);
+Procedure NewTestCase(ACase: string; ATestClassName: string = '');
+Function  CheckIsEqual(AExpected, AResult: TComparitorType;
+  AMessage: string = ''; ASkipped: boolean=false): boolean;
+Function  CheckIsTrue(AResult: boolean; AMessage: string = ''; ASkipped: boolean=false): boolean;
+Function  CheckIsFalse(AResult: boolean; AMessage: string = ''; ASkipped: boolean=false): boolean;
+Function  CheckNotEqual(AResult1, AResult2: TComparitorType;
+  AMessage: string = ''; ASkipped: boolean=false): boolean;
+Procedure  ExpectException(AExceptionClassName: string);
+Function  NotImplemented(AMessage: string=''):boolean;
+Function  TotalTests: integer;
+Procedure TestSummary;
+procedure ClassResults;
+Procedure NewTestSet(AClassName: string);
+Function ConsoleScreenWidth:integer;
+Procedure Print(AText: String; AColour: smallint = FOREGROUND_DEFAULT);
+Procedure PrintLn(AText: String; AColour: smallint = FOREGROUND_DEFAULT);
+
+implementation
+
+var
+  SameTestCounter :integer = 0;
+  LastTestCase: string;
+
+
+///////////  SCREEN MANAGEMENT \\\\\\\\\\\\\\\\\
 
 var
   Screen_width: Integer =-1;
@@ -130,8 +130,8 @@ Procedure Title(AText: string);
 var PreSpace,PostSpace, TitleSpace:integer;
 begin
   TitleSpace := ConsoleScreenWidth-4;
-  PreSpace :=  trunc((TitleSpace-AText.Length)/2);
-  PostSpace := TitleSpace-PreSpace-AText.Length;
+  PreSpace :=  trunc((TitleSpace-Length(AText))/2);
+  PostSpace := TitleSpace-PreSpace-Length(AText);
   SetTextColour(clDefault);
   DoubleLine;
   Print(StringOfChar('=',PreSpace));
@@ -234,10 +234,112 @@ begin
   LastTestCase := '';
   CurrentTestCase:='';
   CurrentTestClass:=AClassName;
+  ExpectedException := '';
 
 end;
 
-Function Check(IsEqual: boolean; AExpected, AResult: TValue;
+Procedure  ExpectException(AExceptionClassName: string);
+begin
+  ExpectedException := '';
+end;
+
+function ValueAsString(AValue: TComparitorType): string;
+begin
+  case varType(AValue) of
+    varEmpty : Result := 'Empty';
+    varNull  : Result := 'null';
+    varSingle,
+    varDouble,
+    varCurrency : Result := FloatToStr(AValue);
+    varDate     : Result := FormatDateTime('yyyy-mm-dd hh:nn:ss.zzz',Avalue);
+    varBoolean : If (AValue) Then Result := 'True' else Result := 'False';
+
+    varSmallint,
+    varInteger,
+    varVariant,
+    varShortInt,
+    varByte,
+    varWord,
+    varLongWord,
+    varInt64    : Result := IntToStr(AValue);
+
+    varOleStr,
+    varStrArg,
+    varString    : Result := AValue;
+
+  else
+    Result := 'Unsupported Type';
+  end;
+
+end;
+
+Function CompareValues(AExpected, AResult : TComparitorType):boolean;
+var lExpectedType,
+    lResultType :  TVarType;
+    lExpectedIsInteger,
+    lExpectedIsNumber,
+    lExpectedIsString,
+    lResultIsInteger,
+    lResultIsNumber,
+    lResultIsString : Boolean;
+begin
+    Result := false;
+    lExpectedType := VarType(AExpected);
+    lResultType := VarType(AResult);
+
+    if (lExpectedType = lResultType) then
+    begin
+      Result :=  (AExpected=AResult);
+      exit;
+    end;
+
+    lResultIsInteger := lResultType in [varByte, varSmallint, varInteger, varShortInt
+                                         ,varWord,varLongWord,varInt64];
+    if (lExpectedType = VarBoolean) and
+       (lResultIsInteger) then
+    begin
+      Result := (AExpected=(AResult=0));
+      exit;
+    end;
+
+    lExpectedIsInteger := lExpectedType in [varByte, varSmallint, varInteger, varShortInt
+                                             ,varWord,varLongWord,varInt64];
+
+    if (lExpectedIsInteger and lResultIsInteger) then
+    begin
+      Result := varAsType(AExpected,varInt64)=VarAsType(Aresult,varInt64) ;
+      exit;
+    end;
+
+    if (lResultType = VarBoolean) and (lExpectedIsInteger) then
+    begin
+      Result := (AExpected=0)=AResult;
+      exit;
+    end;
+
+    lExpectedIsNumber := (lExpectedisInteger) or
+       (lExpectedType in [varSingle,varDouble,varCurrency]);
+    lResultIsNumber := (lResultIsInteger) or
+       (lResultType in [varSingle,varDouble,varCurrency]);
+
+    if (lExpectedIsNumber and lResultIsNumber) then
+    begin
+      result := double(AExpected)=double(AResult);
+      exit;
+    end;
+
+    lExpectedIsString := (lExpectedType=varString) or
+           (lExpectedType in [varOleStr, varStrArg]);
+    lResultIsString := (lResultType=varString) or
+           (lResultType in [varOleStr, varStrArg]);
+    if (lExpectedIsString and lResultIsString) then
+    begin
+       result := AResult = AExpected;
+       exit;
+    end;
+end;
+
+Function Check(IsEqual: boolean; AExpected, AResult: TComparitorType;
   AMessage: string; ASkipped: boolean): boolean;
 var
   lMessage,lCounter: string;
@@ -252,7 +354,7 @@ begin
     if ASkipped then
     begin
       lResult:=1;
-      if Amessage='' then lMessage:='Test Skipped'
+      if Amessage='' then lMessage:=' Test Skipped'
        else lMessage := ' '+AMessage;
       lMessageColour := clSkipped;
       inc(SetSkippedTestCases);
@@ -260,7 +362,7 @@ begin
     end;
     try
       lMessage := '';
-      Outcome := AExpected.ToString = AResult.ToString;
+      Outcome := CompareValues(AExpected,AResult);
       if IsEqual<>Outcome then
       begin
         lResult := 2;
@@ -270,25 +372,35 @@ begin
           lMessageColour := clMessage;
           if isEqual then
             lMessage := format('%s   Expected:<%s>%s   Actual  :<%s>',
-             [#13#10, AExpected.ToString, #13#10, AResult.ToString])
+             [#13#10, ValueAsString(AExpected), #13#10, ValueAsString(AResult)])
           else
             lMessage := format('%s   Expected outcomes to differ, but both returned %s%s',
-             [#13#10, AExpected.ToString]);
+             [#13#10, ValueAsString(AExpected)]);
         end;
+        exit;
       end;
       inc(SetPassedTestCases);
     except
       on e: exception do
       begin
-        lResult := 2;
-        lMessage := e.Message;
-        inc(SetErrors);
+        if (e.ClassName=ExpectedException) then
+        begin
+          // At this level, it will only be exceptions
+          // for Variant type comparisons
+          lResult := 0;
+          inc(SetPassedTestCases);
+        end else
+        begin
+          lResult := 2;
+          lMessage := e.Message;
+          inc(SetErrors);
+        end;
       end;
     end;
   finally
     if LastTestCase=CurrentTestCase then inc(SameTestCounter) else SameTestCounter:=1;
     LastTestCase := CurrentTestCase;
-    if SameTestCounter=1 then lCounter := '' else lCounter := '-'+SameTestCounter.ToString;
+    if SameTestCounter=1 then lCounter := '' else lCounter := '-'+InttoStr(SameTestCounter);
     if CurrentTestCase = '' then
     begin
      CurrentTestCase:=copy('Test for '+CurrentTestClass,1,ConsoleScreenWidth-4);
@@ -307,13 +419,13 @@ begin
   end;
 end;
 
-Function CheckIsEqual(AExpected, AResult: TValue;
+Function CheckIsEqual(AExpected, AResult: TComparitorType;
   AMessage: string = '';ASkipped: boolean=false): boolean;
 begin
   Result := check(true,AExpected, AResult, Amessage, ASkipped);
 end;
 
-Function CheckNotEqual(AResult1, AResult2: TValue;
+Function CheckNotEqual(AResult1, AResult2: TComparitorType;
   AMessage: string; ASkipped: boolean): boolean;
 begin
   Result := check(false,AResult1, AResult2, Amessage, ASkipped);
@@ -353,6 +465,8 @@ begin
 end;
 
 initialization
-  system.ReportMemoryLeaksOnShutdown := True;
+  {$IF CompilerVersion >= 20.0}
+    system.ReportMemoryLeaksOnShutdown := True;
+  {$IFEND}
 
 end.
