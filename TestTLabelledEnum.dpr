@@ -278,7 +278,7 @@ begin
     if sameText(Paramstr(1),'/p') then ReadLn;
 
 
-    ExitCode := TotalErrors+TotalFailedTestCases;
+    ExitCode := TotalErroredTestCases+TotalFailedTestCases;
 
   except
     on E: Exception do

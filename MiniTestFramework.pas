@@ -1,14 +1,14 @@
 unit MiniTestFramework;
 
-
 interface
 
 uses SysUtils, windows, Variants;
 
 Const
-  PASS_FAIL: array[0..2] of string = ('PASS', 'SKIP', 'FAIL');
+  PASS_FAIL: array[0..3] of string = ('PASS', 'SKIP', 'FAIL', 'ERR ');
   FOREGROUND_DEFAULT=7;
   SKIPPED = True;
+  SKIP = True; //alternate
 
   DEFAULT_SCREEN_WIDTH=80;
   FOREGROUND_CYAN=3;
@@ -21,42 +21,71 @@ Const
   clMessage=FOREGROUND_CYAN;
   clDefault=FOREGROUND_DEFAULT;
   clSkipped=FOREGROUND_PURPLE;
+
+
+
 Type
   TComparitorType = Variant;
+  TTestCaseProcedure = Procedure();
+  TTestSet = Record
+    Execute: TTestCaseProcedure;
+    TestClass: string;
+    Skip: Boolean;
+    ExpectedException: string;
+  end;
+
 var
-  ExpectedException,
+  MiniTestCases : Array of TTestSet;
+
+  SkippingSet,IgnoreSkip : boolean;
+
+  ExpectedException, ExpectedSetException,
   CurrentTestClass, CurrentTestCase: string;
   TotalPassedTestCases : integer =0;
   TotalFailedTestCases : integer =0;
   TotalSkippedTestCases: integer =0;
-  TotalErrors          : integer =0;
+  TotalErroredTestCases: integer =0;
   TotalSets            : integer =0;
 
   SetPassedTestCases, SetFailedTestCases, SetErrors, SetSkippedTestCases: integer;
 
 Procedure Title(AText: string);
+
+Procedure AddTestSet(ATestClass: string; AProcedure : TTestCaseProcedure;
+    ASkipped:boolean=False; AExpectedException: string = '');
+Procedure PrepareSet(AProcedure: TTestCaseProcedure);
+Procedure FinaliseSet(AProcedure: TTestCaseProcedure);
+Procedure FinalizeSet(AProcedure: TTestCaseProcedure);
+Procedure RunTestSets;
+
 Procedure NewTestCase(ACase: string; ATestClassName: string = '');
+Procedure NewTestSet(AClassName: string; ASkipped: boolean=false);
 Function  CheckIsEqual(AExpected, AResult: TComparitorType;
   AMessage: string = ''; ASkipped: boolean=false): boolean;
 Function  CheckIsTrue(AResult: boolean; AMessage: string = ''; ASkipped: boolean=false): boolean;
 Function  CheckIsFalse(AResult: boolean; AMessage: string = ''; ASkipped: boolean=false): boolean;
 Function  CheckNotEqual(AResult1, AResult2: TComparitorType;
   AMessage: string = ''; ASkipped: boolean=false): boolean;
-Procedure  ExpectException(AExceptionClassName: string);
+Procedure ExpectException(AExceptionClassName: string;AExpectForSet: boolean=false);
+Procedure CheckException(AException: Exception);
 Function  NotImplemented(AMessage: string=''):boolean;
+Function  DontSkip:Boolean;
 Function  TotalTests: integer;
 Procedure TestSummary;
 procedure ClassResults;
-Procedure NewTestSet(AClassName: string);
-Function ConsoleScreenWidth:integer;
+Function  ConsoleScreenWidth:integer;
 Procedure Print(AText: String; AColour: smallint = FOREGROUND_DEFAULT);
 Procedure PrintLn(AText: String; AColour: smallint = FOREGROUND_DEFAULT);
 
 implementation
 
+Type
+  TCheckTestType = (cttComparison, cttSkip, cttException);
+
 var
   SameTestCounter :integer = 0;
   LastTestCase: string;
+
 
 
 ///////////  SCREEN MANAGEMENT \\\\\\\\\\\\\\\\\
@@ -70,7 +99,7 @@ begin
   result := TotalPassedTestCases +
             TotalFailedTestCases +
             TotalSkippedTestCases +
-            TotalErrors +
+            TotalErroredTestCases +
             SetPassedTestCases +
             SetFailedTestCases +
             SetSkippedTestCases +
@@ -126,6 +155,49 @@ begin
   Print(AText+#13#10, AColour);
 end;
 
+Procedure AddTestSet(ATestClass: string; AProcedure : TTestCaseProcedure;
+  ASkipped: Boolean; AExpectedException: string);
+var l:integer;
+begin
+   l := length(MiniTestCases);
+   SetLength(MiniTestCases,l+1);
+   MiniTestCases[l].Execute := AProcedure;
+   MiniTestCases[l].TestClass := ATestClass;
+   MiniTestCases[l].Skip := ASkipped;
+   MiniTestCases[l].ExpectedException := AExpectedException;
+end;
+
+Procedure PrepareSet(AProcedure: TTestCaseProcedure);
+begin
+  AddTestSet('',AProcedure);
+end;
+
+Procedure FinaliseSet(AProcedure: TTestCaseProcedure);
+begin
+  AddTestSet('',AProcedure);
+end;
+
+Procedure FinalizeSet(AProcedure: TTestCaseProcedure);
+begin
+  // Americaniz(s)ed form
+  FinaliseSet(AProcedure);
+end;
+
+Procedure RunTestSets;
+var i,l: integer;
+begin
+  l := length(MiniTestCases);
+  for i := 0 to l-1 do
+  Try
+    if MiniTestCases[i].TestClass<>'' then
+      NewTestSet(MiniTestCases[i].TestClass,MiniTestCases[i].Skip);
+    ExpectException(MiniTestCases[i].ExpectedException,true);
+    MiniTestCases[i].Execute;
+  except
+    on e:exception do CheckException(e);
+  end;
+end;
+
 Procedure Title(AText: string);
 var PreSpace,PostSpace, TitleSpace:integer;
 begin
@@ -151,7 +223,7 @@ function RunHasErrors: smallint;
 var lSetResult : smallint;
 begin
   Result := 0;
-  if (TotalFailedTestCases+TotalErrors>0) then result := 2
+  if (TotalFailedTestCases+TotalErroredTestCases>0) then result := 2
   else if TotalSkippedTestCases>0 then Result := 1;
   if result = 2  then exit;
   lSetResult := SetHasErrors;
@@ -198,10 +270,10 @@ begin
   NewTestSet('');
   Println(
     format('Total Sets:%-5d Tests:%-5d Passed:%-5d Failed:%-5d Skipped:%-5d Errors:%-5d',[
-              TotalSets-1, TotalPassedTestCases,
-              TotalTests,
-              TotalFailedTestCases,TotalSkippedTestCases, TotalErrors]
-    ),
+              TotalSets-1, TotalTests,
+              TotalPassedTestCases,TotalFailedTestCases,
+              TotalSkippedTestCases, TotalErroredTestCases
+    ]),
     ResultColour(RunHasErrors or FOREGROUND_INTENSITY)
   );
 end;
@@ -210,14 +282,13 @@ end;
 
 /////////// TEST CASES  \\\\\\\\\\\\\\\\\
 
-Procedure NewTestSet(AClassName: string);
+Procedure NewTestSet(AClassName: string; ASkipped: boolean);
 var lHeading: string;
 begin
   ClassResults;
   if AClassName<>'' then
   begin
     lHeading :=' Test Set:'+ AClassName;
-
     Println(lHeading,clTitle);
   end;
 
@@ -225,7 +296,10 @@ begin
   inc(TotalPassedTestCases, SetPassedTestCases);
   Inc(TotalFailedTestCases, SetFailedTestCases);
   inc(TotalSkippedTestCases, SetSkippedTestCases);
-  Inc(TotalErrors, SetErrors);
+  Inc(TotalErroredTestCases, SetErrors);
+  SkippingSet := ASkipped;
+  IgnoreSkip := false;
+  ExpectedSetException := '';
   SetPassedTestCases := 0;
   SetFailedTestCases := 0;
   SetSkippedTestCases := 0;
@@ -235,17 +309,18 @@ begin
   CurrentTestCase:='';
   CurrentTestClass:=AClassName;
   ExpectedException := '';
-
 end;
 
-Procedure  ExpectException(AExceptionClassName: string);
+Procedure ExpectException(AExceptionClassName: string;AExpectForSet: boolean=false);
 begin
   ExpectedException := '';
 end;
 
 function ValueAsString(AValue: TComparitorType): string;
+var lType:  TVarType;
 begin
-  case varType(AValue) of
+  lType := varType(AValue);
+  case lType of
     varEmpty : Result := 'Empty';
     varNull  : Result := 'null';
     varSingle,
@@ -261,8 +336,15 @@ begin
     varByte,
     varWord,
     varLongWord,
+    {$IFDEF UNICODE}
+     varUInt64,
+    {$ENDIF}
+
     varInt64    : Result := IntToStr(AValue);
 
+    {$IFDEF UNICODE}
+      varUString,
+    {$ENDIF}
     varOleStr,
     varStrArg,
     varString    : Result := AValue;
@@ -340,7 +422,7 @@ begin
 end;
 
 Function Check(IsEqual: boolean; AExpected, AResult: TComparitorType;
-  AMessage: string; ASkipped: boolean): boolean;
+  AMessage: string; ATestType: TCheckTestType): boolean;
 var
   lMessage,lCounter: string;
   lResult: integer;
@@ -351,52 +433,74 @@ begin
   lMessageColour := clDefault;
   lResult := 0;
   try
-    if ASkipped then
-    begin
-      lResult:=1;
-      if Amessage='' then lMessage:=' Test Skipped'
-       else lMessage := ' '+AMessage;
-      lMessageColour := clSkipped;
-      inc(SetSkippedTestCases);
-      exit;
-    end;
-    try
-      lMessage := '';
-      Outcome := CompareValues(AExpected,AResult);
-      if IsEqual<>Outcome then
+    case ATestType Of
+      cttSkip :
+          begin
+            lResult:=1;
+            if Amessage='' then lMessage:=' Test Skipped'
+             else lMessage := ' '+AMessage;
+            lMessageColour := clSkipped;
+            inc(SetSkippedTestCases);
+            exit;
+          end;
+      cttException:
+          begin
+             if isEqual then
+             begin
+                lResult := 0;
+                inc(SetPassedTestCases);
+             end else
+             begin
+                lResult := 3;
+                inc(SetErrors);
+                lMessageColour := clMessage;
+                lMessage := format('%s   Expected:<%s>%s   Actual  :<%s>',
+                 [#13#10, ValueAsString(AExpected), #13#10, ValueAsString(AResult)])
+             end;
+             if AMessage='' then lMessage:= ' Exception.'
+             else lMEssage := ' '+AMessage;
+          end;
+    else //case
       begin
-        lResult := 2;
-        inc(SetFailedTestCases);
-        if AMessage = '' then
-        begin
-          lMessageColour := clMessage;
-          if isEqual then
-            lMessage := format('%s   Expected:<%s>%s   Actual  :<%s>',
-             [#13#10, ValueAsString(AExpected), #13#10, ValueAsString(AResult)])
-          else
-            lMessage := format('%s   Expected outcomes to differ, but both returned %s%s',
-             [#13#10, ValueAsString(AExpected)]);
-        end;
-        exit;
-      end;
-      inc(SetPassedTestCases);
-    except
-      on e: exception do
-      begin
-        if (e.ClassName=ExpectedException) then
-        begin
-          // At this level, it will only be exceptions
-          // for Variant type comparisons
-          lResult := 0;
+        try
+          lMessage := '';
+          Outcome := CompareValues(AExpected,AResult);
+          if IsEqual<>Outcome then
+          begin
+            lResult := 2;
+            inc(SetFailedTestCases);
+            if AMessage = '' then
+            begin
+              lMessageColour := clError;
+              if isEqual then
+                lMessage := format('%s   Expected:<%s>%s   Actual  :<%s>',
+                 [#13#10, ValueAsString(AExpected), #13#10, ValueAsString(AResult)])
+              else
+                lMessage := format('%s   Expected outcomes to differ, but both returned %s%s',
+                 [#13#10, ValueAsString(AExpected)]);
+            end;
+            exit;
+          end;
           inc(SetPassedTestCases);
-        end else
-        begin
-          lResult := 2;
-          lMessage := e.Message;
-          inc(SetErrors);
+        except
+          on e: exception do
+          begin
+            if (e.ClassName=ExpectedException) then
+            begin
+              // At this level, it will only be exceptions
+              // for Variant type comparisons
+              lResult := 0;
+              inc(SetPassedTestCases);
+            end else
+            begin
+              lResult := 2;
+              lMessage := e.Message;
+              inc(SetErrors);
+            end;
+          end;
         end;
-      end;
-    end;
+      end; //case else
+    end; //case
   finally
     if LastTestCase=CurrentTestCase then inc(SameTestCounter) else SameTestCounter:=1;
     LastTestCase := CurrentTestCase;
@@ -409,7 +513,8 @@ begin
       lCounter:='-1';
       LastTestCase := CurrentTestCase;
      end;
-
+     ExpectedException := ExpectedSetException;
+     IgnoreSkip := false;
     end;
 
     Print(format('  %s-',[PASS_FAIL[lResult]]),lMessageColour);
@@ -419,16 +524,30 @@ begin
   end;
 end;
 
+function TestTypeFromSkip(ASkipped: Boolean): TCheckTestType;
+begin
+  if (Not IgnoreSkip) and (ASkipped or SkippingSet) then
+     Result := cttSkip else Result := cttComparison;
+end;
+
+Function DontSkip:Boolean;
+begin
+  IgnoreSkip := true;
+  result := false;
+end;
+
 Function CheckIsEqual(AExpected, AResult: TComparitorType;
   AMessage: string = '';ASkipped: boolean=false): boolean;
 begin
-  Result := check(true,AExpected, AResult, Amessage, ASkipped);
+  Result := check(true,AExpected, AResult, Amessage,
+              TestTypeFromSkip(ASkipped));
 end;
 
 Function CheckNotEqual(AResult1, AResult2: TComparitorType;
   AMessage: string; ASkipped: boolean): boolean;
-begin
-  Result := check(false,AResult1, AResult2, Amessage, ASkipped);
+Begin
+  Result := check(false,AResult1, AResult2, Amessage,
+                   TestTypeFromSkip(ASkipped));
 end;
 
 Function CheckIsTrue(AResult: boolean; AMessage: string;ASkipped: boolean): boolean;
@@ -439,6 +558,20 @@ end;
 Function CheckisFalse(AResult: boolean; AMessage: string; ASkipped: boolean): boolean;
 begin
   Result := CheckIsEqual(False, AResult,AMessage,ASkipped);
+end;
+
+Procedure CheckException(AException: Exception);
+var lExpected: string;
+begin
+   lExpected := ExpectedException;
+   if lExpected='' then lExpected := 'No Exceptions';
+   Check(
+     (AException.className=lExpected) or
+     (AException.Message = lExpected),
+      lExpected,
+      AException.ClassName+':'+AException.Message,
+      '',
+      cttException);
 end;
 
 Function NotImplemented(AMessage: string = ''): boolean;
@@ -461,7 +594,8 @@ begin
 
    if ACase <> '' then
     CurrentTestCase := ACase;
-
+   ExpectedException := ExpectedSetException;
+   IgnoreSkip := false;
 end;
 
 initialization
