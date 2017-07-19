@@ -2,11 +2,7 @@
 _**A Generic Record Type Wrapper for Enumerated types adding multi-language Text Label support, with implicit bi-directional String and Integer Casting**_
 
 ## Purpose
-The primary purpose of _*TLabelledEnum*_ is to extend the **any existing** Enumerated type to support "context" specific text labels which can be cast implicitly back and forth between the enumerated type.  For example, the Variable MyOption being a type of _TMyOption=(OptionA, OptionB, OptionC)_ can be used can be used to populate a Tcombobox with labels and the Text of the can be used directly to set the value like this:
-
-``` if (cbDropDownList.text=MyOption) then ...``` 
-
-And
+The primary purpose of _*TLabelledEnum*_ is to extend **any existing** Enumerated type to support "context" specific text labels which can be cast implicitly back and forth between the enumerated type.  For example, the Variable MyOption being a type of _TMyOption=(OptionA, OptionB, OptionC)_ can be exteneded with the TLabelledEnum type to populate (say) a TCombobox with labels like this:
 
 ``` cbDropDownlist.items.text := MyOption.labels; ```
 
@@ -14,22 +10,26 @@ Setting the default for the combo is simply
 
 ``` cbDropDownlist.text := MyOption; ```
 
+And setting the users selection to the Enumerated type is 
+
+``` MyOption := cbDropDownlist.text; ```
+
 
 ## Text Label Support
 
-*_TLabelledNum_* supports adding any number of text labels to a paticular ordinal Value so that the text displayed is more user friendly and/or context specific.  Ie OptionA can be displayed as "Option A" or perhaps "Opcion A" if the user's default language is Spanish. Assigning either (case insensitive) "Option A" or "Opcion A" to a labelled enum type will result in the ordinal value of _OptionA_.
+*_TLabelledNum_* supports adding any number of text labels to a paticular ordinal Value so that the text displayed is more user friendly and/or context specific.  Ie _OptionA_ can be displayed as "Option A" or perhaps "Opción A" if the user's default language is Spanish. Assigning either (case insensitive) "Option A" or "Opción A" to a labelled enum type will result in the ordinal value of _OptionA_.
 
 ```  MyOption := 'option a'; ```
 
 ## Integer Value support
 
 Integer values of Enumerated Types are also supported so the following are also valid
-``` MyOption := 1; ``` and ``` x := MyOption+1;```
+``` MyOption := 0; ``` and ``` x := MyOption+1;```
 
 ## A Generic Type with Class methods 
 
 The **TLabelledEnum** is a generic record type that can wrap **any** existing Enumerated type to  provide Text label support. 
-An example use case is creating a user interface to allow a user to specify a connection string for a Database.  Wrapping _ADODB.TConnectMode_ in-line like this ``` TLabelledEnum<TConnectMode>.getTypeLabels``` returns a string array of the default labels which you can use to populate a drop down list. Once the user has made the selection, you can simply use the text result to cast back to the type
+An example use case is creating a user interface to build a connection string for a Database.  Wrapping _ADODB.TConnectMode_ in-line like this ``` TLabelledEnum<TConnectMode>.getTypeLabels``` returns a string array of the default labels which you can use to populate a drop down list. Once the user has made the selection, you can simply use the text result to cast back to the type
 
 ```ADOConnection.ConnectionMode := TLabelledEnum<TConnectMode>(cbConnectDropDown.text);```
 
@@ -80,7 +80,7 @@ You can provide a set of labels for specific contexts.  Eg "Under certian condit
 
 If a user speaks french, but you need to log activity in English, the same variable can be used to log the selection in english and output to the user in french (assuming you have defined a set of labels in french).
 
-Perhaps a more powerful example is where an interface from one system has a value for Gender of "Female" and but another system expects the field to have a value of "F" then _TLabelledEnum_ can be set by either label to the same ordinal value of _genFemale_.  Likewise, the correct field text can be output automatically for either interface by selecting the appropriate context.
+Perhaps a more powerful example is where an interface from one system has a value for Gender of "Female" and but another system expects the field to have a value of "F". Using _TLabelledEnum_ then setting the ordinal value can be can be set by either label. Eg ``` PersonGender := 'F';```` or PersonGender:= 'Female';``` both result in _PersonGender_ having the ordinal value of _genFemale_.  Likewise, the correct field text can be output automatically for either interface by selecting the appropriate context.
 
 ## Class functions and Properties
   + ```Enum : T``` 
@@ -141,8 +141,10 @@ eg
 
  ```writeln('Label is "'+MyLabelledType+'"');``` 
 
-will output the label eg ```Label is Option A```, and casting FROM a string either the _Label_ or the _Type Identifier_ is allowed eg 
+might output the label eg ```Label is Option A```, and casting FROM a string either the _Label_ or the _Type Identifier_ is allowed eg 
 ```if (MyLabelledType='Label is Option A') then``` or ```MyLabelledType:='OptionA';```  
+
+The most common usage is of course is to have a user input field set the label ```MyLabelledType := UserSelection.Text;``` To explicitly set the value in code is still most sensible to use the defined identifier ```MyLabelledType := OptionA;```  
 
 
 ## Origins of the _TLablledEnum_ Type
