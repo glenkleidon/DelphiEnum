@@ -80,7 +80,7 @@ You can provide a set of labels for specific contexts.  Eg "Under certian condit
 
 If a user speaks french, but you need to log activity in English, the same variable can be used to log the selection in english and output to the user in french (assuming you have defined a set of labels in french).
 
-Perhaps a more powerful example is where an interface from one system has a value for Gender of "Female" and but another system expects the field to have a value of "F". Using _TLabelledEnum_ then setting the ordinal value can be can be set by either label. Eg ``` PersonGender := 'F';```` or PersonGender:= 'Female';``` both result in _PersonGender_ having the ordinal value of _genFemale_.  Likewise, the correct field text can be output automatically for either interface by selecting the appropriate context.
+Perhaps a more powerful example is where an interface from one system has a value for Gender of "Female" and but another system expects the field to have a value of "F". Using _TLabelledEnum_ then setting the ordinal value can be can be set by either label. Eg ``` PersonGender := 'F';```  or ```PersonGender:= 'Female';``` both result in _PersonGender_ having the ordinal value of _genFemale_.  Likewise, the correct field text can be output automatically for either interface by selecting the appropriate context.
 
 ## Class functions and Properties
   + ```Enum : T``` 
